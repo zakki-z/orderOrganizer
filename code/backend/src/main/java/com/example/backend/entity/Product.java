@@ -16,7 +16,4 @@ public class Product {
     private String name;
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
-    @ManyToOne
-    @JoinColumn(name = "order_id")
-    private Order order;
 }

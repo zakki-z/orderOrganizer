@@ -14,7 +14,6 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    @NotBlank
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Product> product;
     @Column(nullable = false, updatable = true, precision = 10, scale = 2)
