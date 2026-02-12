@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Cash Register</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .product-card { cursor: pointer; transition: 0.2s; }
+        .product-card:hover { transform: scale(1.02); background-color: #f8f9fa; border-color: #0d6efd; }
+        .cart-section { height: 85vh; overflow-y: auto; border-left: 1px solid #ddd; }
+        .total-box { font-size: 1.5rem; font-weight: bold; }
+    </style>
+</head>
+<body class="container-fluid">
+
+<div th:replace="~{fragments/header :: header}"></div>
+
+<div class="row">
+    <div class="col-md-7 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Products</h3>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                + New Product
+            </button>
+        </div>
+
+        <div class="row g-3" id="productGrid">
+            <div class="col-md-4 col-6" th:each="product : ${products}">
+                <div class="card product-card h-100 shadow-sm"
+                     th:onclick="addToCart([[${product.id}]], [[${product.name}]], [[${product.price}]])">
+                    <div class="card-body text-center">
+                        <h5 class="card-title" th:text="${product.name}">Product</h5>
+                        <p class="card-text text-primary fw-bold">$<span th:text="${product.price}">0.00</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5 cart-section bg-light p-4">
+        <h3>Current Order</h3>
+        <table class="table table-hover mt-3">
+            <thead class="table-dark">
+            <tr>
+                <th>Item</th>
+                <th width="20%">Qty</th>
+                <th width="25%">Price</th>
+                <th>Subtotal</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody id="cartTableBody">
+            </tbody>
+        </table>
+
+        <div class="mt-4 border-top pt-3">
+            <div class="d-flex justify-content-between total-box">
+                <span>Total:</span>
+                <span id="displayTotal">$0.00</span>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label class="form-label">Paid Amount</label>
+                <input type="number" id="paidAmount" class="form-control form-control-lg" placeholder="0.00" oninput="calculateChange()">
+            </div>
+
+            <div class="d-flex justify-content-between text-muted">
+                <span>Balance / Remaining:</span>
+                <span id="displayRemaining">$0.00</span>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label class="form-label">Description (Optional)</label>
+                <textarea id="orderDescription" class="form-control" rows="2"></textarea>
+            </div>
+
+            <button class="btn btn-primary w-100 btn-lg mt-3" onclick="submitOrder()">Complete Order</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newProductForm">
+                    <div class="mb-3">
+                        <label>Name</label>
+                        <input type="text" id="newProdName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Price</label>
+                        <input type="number" id="newProdPrice" class="form-control" step="0.01" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewProduct()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let cart = [];
+
+    // 1. Add to Cart
+    function addToCart(id, name, price) {
+        const existing = cart.find(item => item.id === id);
+        if (existing) {
+            existing.qty++;
+        } else {
+            cart.push({ id: id, name: name, price: parseFloat(price), qty: 1 });
+        }
+        renderCart();
+    }
+
+    // 2. Render Cart
+    function renderCart() {
+        const tbody = document.getElementById('cartTableBody');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        cart.forEach((item, index) => {
+            const subtotal = item.qty * item.price;
+            total += subtotal;
+
+            tbody.innerHTML += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td><input type="number" min="1" class="form-control px-1" value="${item.qty}" onchange="updateItem(${index}, 'qty', this.value)"></td>
+                        <td><input type="number" min="0" step="0.01" class="form-control px-1" value="${item.price}" onchange="updateItem(${index}, 'price', this.value)"></td>
+                        <td>$${subtotal.toFixed(2)}</td>
+                        <td><button class="btn btn-sm btn-danger text-white" onclick="removeItem(${index})">&times;</button></td>
+                    </tr>
+                `;
+        });
+
+        document.getElementById('displayTotal').innerText = '$' + total.toFixed(2);
+        document.getElementById('displayTotal').dataset.value = total; // Store raw value
+        calculateChange();
+    }
+
+    // 3. Update Item (Qty or Price)
+    function updateItem(index, field, value) {
+        if (field === 'qty') cart[index].qty = parseInt(value);
+        if (field === 'price') cart[index].price = parseFloat(value);
+        renderCart();
+    }
+
+    // 4. Remove Item
+    function removeItem(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    // 5. Calculate Remaining
+    function calculateChange() {
+        const total = parseFloat(document.getElementById('displayTotal').dataset.value || 0);
+        const paid = parseFloat(document.getElementById('paidAmount').value || 0);
+        const remaining = total - paid;
+        document.getElementById('displayRemaining').innerText = '$' + remaining.toFixed(2);
+    }
+
+    // 6. Submit Order (POST to JSON API)
+    function submitOrder() {
+        if (cart.length === 0) { alert("Cart is empty!"); return; }
+
+        const total = parseFloat(document.getElementById('displayTotal').dataset.value);
+        const paid = parseFloat(document.getElementById('paidAmount').value || 0);
+        const remaining = total - paid;
+
+        // Construct payload matching OrderDTO
+        // Note: Since backend expects List<Product>, we flatten the cart.
+        // (e.g., 2 Apples -> [AppleObj, AppleObj]) to satisfy backend structure.
+        let productList = [];
+        let totalQty = 0;
+
+        cart.forEach(item => {
+            totalQty += item.qty;
+            for(let i=0; i < item.qty; i++) {
+                productList.push({ id: item.id, name: item.name, price: item.price });
+            }
+        });
+
+        const orderData = {
+            product: productList,
+            quantity: totalQty,
+            totalPrice: total,
+            paidAmount: paid,
+            remainingAmount: remaining,
+            description: document.getElementById('orderDescription').value,
+            status: "COMPLETED"
+        };
+
+        fetch('/api/v1.0/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        })
+            .then(response => {
+                if(response.ok) {
+                    alert("Order placed successfully!");
+                    window.location.reload(); // Reset screen
+                } else {
+                    alert("Error placing order.");
+                }
+            });
+    }
+
+    // 7. Save New Product (AJAX)
+    function saveNewProduct() {
+        const data = {
+            name: document.getElementById('newProdName').value,
+            price: parseFloat(document.getElementById('newProdPrice').value)
+        };
+
+        fetch('/api/product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then(newProd => {
+                // Close modal
+                const modalEl = document.getElementById('addProductModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+
+                // Refresh page or manually append to grid (Reload is safer for simplicity)
+                location.reload();
+            });
+    }
+</script>
+</body>
+</html>
