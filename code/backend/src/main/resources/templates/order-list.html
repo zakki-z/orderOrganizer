@@ -17,7 +17,8 @@
                 <thead class="table-dark">
                 <tr>
                     <th>ID</th>
-                    <th>Description</th>
+                    <th>Products Ordered</th>
+                    <th>Total Qty</th>
                     <th>Total Price</th>
                     <th>Paid</th>
                     <th>Remaining</th>
@@ -27,12 +28,21 @@
                 <tbody>
                 <tr th:each="order : ${orders}">
                     <td th:text="${order.id}"></td>
-                    <td th:text="${order.description != null && !order.description.isEmpty() ? order.description : '-'}"></td>
+                    <td>
+                        <ul class="list-unstyled mb-0">
+                            <li th:each="prod : ${order.product}">
+                                <span class="badge bg-secondary" th:text="${prod.name}"></span>
+                                <small class="text-muted" th:text="'($' + ${prod.price} + ')'"></small>
+                            </li>
+                        </ul>
+                    </td>
+                    <td th:text="${order.quantity}"></td>
                     <td class="fw-bold" th:text="${'$' + order.totalPrice}"></td>
                     <td class="text-success" th:text="${'$' + order.paidAmount}"></td>
                     <td class="text-danger" th:text="${'$' + order.remainingAmount}"></td>
                     <td>
-                        <span class="badge bg-success" th:text="${order.status}"></span>
+            <span th:classappend="${order.status.name() == 'COMPLETED' ? 'badge bg-success' : 'badge bg-warning'}"
+                  th:text="${order.status}"></span>
                     </td>
                 </tr>
                 </tbody>
